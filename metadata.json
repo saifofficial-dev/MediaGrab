@@ -1,0 +1,6 @@
+{
+  "name": "MediaGrab - Universal Video Downloader",
+  "description": "Analyze publicly accessible video links, preview media formats and resolutions, and securely download authorized social media videos and audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
