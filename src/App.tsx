@@ -11,6 +11,7 @@ import { Footer } from './components/Footer.tsx';
 import { LegalModal, LegalModalType } from './components/LegalModals.tsx';
 import { AnalyzeResult, PlatformInfo } from './types.ts';
 import { SampleVideo, SAMPLE_VIDEOS, SUPPORTED_PLATFORMS } from './server/adapters/index.ts';
+import { clientAnalyzeMedia } from './utils/clientAnalyzer.ts';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -45,18 +46,36 @@ export default function App() {
     setError(null);
 
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: finalUrl }),
-      });
+      let data: AnalyzeResult | null = null;
 
-      const data = await response.json();
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: finalUrl }),
+        });
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to analyze video');
+        const contentType = response.headers.get('content-type') || '';
+
+        // If the server returned JSON (e.g. local dev / full-stack server)
+        if (contentType.includes('application/json')) {
+          const json = await response.json();
+          if (response.ok) {
+            data = json;
+          } else {
+            throw new Error(json.message || json.error || 'Failed to analyze video');
+          }
+        }
+      } catch (networkErr: unknown) {
+        // If server returned non-JSON (like Netlify SPA redirect returning index.html) or network failed
+        console.warn('Backend API unavailable or returned non-JSON, falling back to client-side extraction:', networkErr);
+      }
+
+      // If backend was not available or static host (Netlify / Vercel), use client-side extraction
+      if (!data) {
+        data = await clientAnalyzeMedia(finalUrl);
       }
 
       setResult(data);
@@ -68,7 +87,7 @@ export default function App() {
         }
       }, 100);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An error occurred while connecting to the backend.';
+      const msg = err instanceof Error ? err.message : 'Unable to analyze video. Please verify the URL and try again.';
       setError(msg);
       setResult(null);
     } finally {

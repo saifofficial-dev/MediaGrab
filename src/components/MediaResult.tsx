@@ -40,23 +40,36 @@ export const MediaResult: React.FC<MediaResultProps> = ({ result, onClear }) => 
     setDownloadSuccess(null);
 
     try {
-      // Build download query
-      const params = new URLSearchParams({
-        url: format.directStreamUrl,
-        formatId: format.id,
-        title: result.title,
-        format: format.format,
-      });
+      // Check if it's a direct media link (e.g. .mp4, .webm, .mp3)
+      const isDirectFile = format.directStreamUrl.match(/\.(mp4|webm|mov|mp3|m4a)(\?.*)?$/i);
 
-      const downloadEndpoint = `/api/download?${params.toString()}`;
+      if (isDirectFile) {
+        // Direct download anchor
+        const link = document.createElement('a');
+        link.href = format.directStreamUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.setAttribute('download', `${result.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.${format.format}`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Full-stack streaming proxy
+        const params = new URLSearchParams({
+          url: format.directStreamUrl,
+          formatId: format.id,
+          title: result.title,
+          format: format.format,
+        });
 
-      // Trigger download using an anchor element
-      const link = document.createElement('a');
-      link.href = downloadEndpoint;
-      link.setAttribute('download', `${result.title}.${format.format}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        const downloadEndpoint = `/api/download?${params.toString()}`;
+        const link = document.createElement('a');
+        link.href = downloadEndpoint;
+        link.setAttribute('download', `${result.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.${format.format}`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
 
       setDownloadSuccess(`Download initiated for ${format.format.toUpperCase()} (${format.quality})`);
       setTimeout(() => setDownloadSuccess(null), 5000);
